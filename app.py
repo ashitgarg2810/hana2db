@@ -22,6 +22,8 @@ def run_databricks_notebook(xml_input: str):
     }
 
     resp = requests.post(url, headers=headers, json=payload)
+    print("STATUS:", resp.status_code)#added
+    print("RESPONSE:", resp.text)#added
     resp.raise_for_status()
     run_id = resp.json()["run_id"]
 
