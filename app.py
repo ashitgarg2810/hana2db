@@ -3,7 +3,7 @@ import streamlit as st
 import time
 
 def run_databricks_notebook(xml_input: str):
-    host = "https://dbc-1385039b-b177.cloud.databricks.com/"
+    host = "https://dbc-1385039b-b177.cloud.databricks.com"
     token = "dapi81bfbcee432414d88ca60fa9f83efc02"
     job_id = "507145734504441"
 
