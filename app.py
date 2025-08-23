@@ -1,8 +1,8 @@
 import streamlit as st
 from datetime import datetime
 
-st.set_page_config(page_title="Upload/Paste → .py", page_icon="🧩")
-st.title("Upload or Paste Text → Download a .py File")
+st.set_page_config(page_title="Upload/Paste → .ipynb", page_icon="🧩")
+st.title("Upload or Paste Text → Download a .ipynb File")
 
 mode = st.radio("Choose input method:", ["Upload file", "Paste text"], horizontal=True)
 
@@ -16,7 +16,7 @@ if mode == "Upload file":
 else:
     final_text = st.text_area("Paste your text here:", height=200)
 
-out_name = st.text_input("Output filename (.py)", value="converted.py")
+out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
 def build_python_file(text: str) -> str:
     # 🔁 This is where you’d transform the text if you want.
@@ -33,17 +33,17 @@ def build_python_file(text: str) -> str:
     )
     return body
 
-if st.button("Create .py file", type="primary"):
+if st.button("Create .ipynb file", type="primary"):
     if not final_text.strip():
         st.warning("Please upload a file or paste some text first.")
         st.stop()
-    if not out_name.strip().endswith(".py"):
-        st.warning("Output file name must end with .py")
+    if not out_name.strip().endswith(".ipynb"):
+        st.warning("Output file name must end with .ipynb")
         st.stop()
 
     py_code = build_python_file(final_text)
 
-    st.success("Your .py file is ready! Download below 👇")
+    st.success("Your .ipynb file is ready! Download below 👇")
     st.download_button(
         "Download file",
         data=py_code,
