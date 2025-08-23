@@ -66,15 +66,19 @@ def build_ipynb_from_output(output: str) -> str:
     return json.dumps(notebook, indent=2)
 
 
-
-st.title("XML → Databricks → Download .ipynb")
-
+# Option 1: Paste XML
 xml_text = st.text_area("Paste your XML here:", height=200)
+
+# Option 2: Upload XML from file
+uploaded_file = st.file_uploader("Or upload a .txt file containing XML", type=["txt", "xml"])
+if uploaded_file is not None:
+    xml_text = uploaded_file.read().decode("utf-8")  # overwrite pasted text if file is uploaded
+
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
 if st.button("Run Notebook & Generate File", type="primary"):
-    if not xml_text.strip():
-        st.warning("Please paste XML first.")
+    if not xml_text or not xml_text.strip():
+        st.warning("Please provide XML (paste or upload).")
         st.stop()
 
     with st.spinner("Running on Databricks..."):
