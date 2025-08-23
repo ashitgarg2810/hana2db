@@ -1,34 +1,47 @@
 import requests
 import streamlit as st
 import time
+import tempfile
+from databricks_cli.sdk.api_client import ApiClient
+from databricks_cli.sdk.service import DbfsService
+import json
+from datetime import datetime
 
-def run_databricks_notebook(xml_input: str):
-    host = "https://dbc-1385039b-b177.cloud.databricks.com"
-    job_id = "507145734504441"
-    token = "dapi81bfbcee432414d88ca60fa9f83efc02"
-    
-    #host = st.secrets["DATABRICKS_HOST"]
-    #token = st.secrets["DATABRICKS_TOKEN"]
-    #job_id = st.secrets["DATABRICKS_JOB_ID"]
+# Databricks credentials
+DB_HOST = "https://<your-databricks-workspace-url>"
+DB_TOKEN = "<your-token>"
+DB_JOB_ID = "<your-job-id>"
 
-    url = f"{host}/api/2.1/jobs/run-now"
-    headers = {"Authorization": f"Bearer {token}"}
+
+# --- Upload file to DBFS ---
+def upload_to_dbfs(file, dbfs_path):
+    api_client = ApiClient(host=DB_HOST, token=DB_TOKEN)
+    dbfs = DbfsService(api_client)
+    content = file.read()
+    dbfs.put(dbfs_path, content, overwrite=True)
+    return dbfs_path
+
+
+# --- Run Databricks Job ---
+def run_databricks_notebook(dbfs_path: str):
+    url = f"{DB_HOST}/api/2.1/jobs/run-now"
+    headers = {"Authorization": f"Bearer {DB_TOKEN}"}
     payload = {
-        "job_id": int(job_id),
+        "job_id": int(DB_JOB_ID),
         "notebook_params": {
-            "xml_input": str(xml_input)
+            "xml_path": dbfs_path   # pass only path, not full XML
         }
     }
 
     resp = requests.post(url, headers=headers, json=payload)
-    print("STATUS:", resp.status_code)#added
-    print("RESPONSE:", resp.text)#added
+    print("STATUS:", resp.status_code)
+    print("RESPONSE:", resp.text)
     resp.raise_for_status()
     run_id = resp.json()["run_id"]
 
     # Poll until job finishes
     while True:
-        status_url = f"{host}/api/2.1/jobs/runs/get?run_id={run_id}"
+        status_url = f"{DB_HOST}/api/2.1/jobs/runs/get?run_id={run_id}"
         r = requests.get(status_url, headers=headers)
         r.raise_for_status()
         state = r.json()["state"]["life_cycle_state"]
@@ -37,15 +50,13 @@ def run_databricks_notebook(xml_input: str):
         time.sleep(5)
 
     # Fetch output
-    output_url = f"{host}/api/2.1/jobs/runs/get-output?run_id={run_id}"
+    output_url = f"{DB_HOST}/api/2.1/jobs/runs/get-output?run_id={run_id}"
     out_resp = requests.get(output_url, headers=headers)
     out_resp.raise_for_status()
     return out_resp.json()
 
 
-import json
-from datetime import datetime
-
+# --- Build IPYNB ---
 def build_ipynb_from_output(output: str) -> str:
     notebook = {
         "cells": [
@@ -70,13 +81,10 @@ def build_ipynb_from_output(output: str) -> str:
     return json.dumps(notebook, indent=2)
 
 
-import streamlit as st
-import os
-import tempfile
+# --- Streamlit UI ---
+st.title("XML → Databricks Notebook Runner")
 
-# Upload XML file only
 uploaded_file = st.file_uploader("Upload a .txt or .xml file containing XML", type=["txt", "xml"])
-
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
 if st.button("Run Notebook & Generate File", type="primary"):
@@ -84,18 +92,15 @@ if st.button("Run Notebook & Generate File", type="primary"):
         st.warning("Please upload a file first.")
         st.stop()
 
-    # Save uploaded file to a temp directory
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp_file:
-        tmp_file.write(uploaded_file.getvalue())
-        local_path = tmp_file.name  # this is the dynamic file path
-     
-    # Send this path to Databricks notebook
+    # Save uploaded file to DBFS
+    dbfs_path = f"/FileStore/xml_uploads/{uploaded_file.name}"
+    upload_to_dbfs(uploaded_file, dbfs_path)
+
+    # Run Databricks job with DBFS path
     with st.spinner("Running on Databricks..."):
-        result = run_databricks_notebook(local_path)
+        result = run_databricks_notebook(dbfs_path)
 
-    # Extract notebook stdout (print output)
     db_output = result.get("notebook_output", {}).get("result", "No output found")
-
     ipynb_content = build_ipynb_from_output(db_output)
 
     st.success("Notebook executed and .ipynb file generated! Download below 👇")
