@@ -15,9 +15,9 @@ def run_databricks_notebook(xml_input: str):
     url = f"{host}/api/2.1/jobs/run-now"
     headers = {"Authorization": f"Bearer {token}"}
     payload = {
-        "job_id": job_id,
+        "job_id": int(job_id),
         "notebook_params": {
-            "xml_input": xml_input
+            "xml_input": str(xml_input)
         }
     }
 
