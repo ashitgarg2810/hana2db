@@ -70,23 +70,28 @@ def build_ipynb_from_output(output: str) -> str:
     return json.dumps(notebook, indent=2)
 
 
-# Option 1: Paste XML
-xml_text = st.text_area("Paste your XML here:", height=200)
+import streamlit as st
+import os
+import tempfile
 
-# Option 2: Upload XML from file
-uploaded_file = st.file_uploader("Or upload a .txt file containing XML", type=["txt", "xml"])
-if uploaded_file is not None:
-    xml_text = uploaded_file.read().decode("utf-8")  # overwrite pasted text if file is uploaded
+# Upload XML file only
+uploaded_file = st.file_uploader("Upload a .txt or .xml file containing XML", type=["txt", "xml"])
 
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
 if st.button("Run Notebook & Generate File", type="primary"):
-    if not xml_text or not xml_text.strip():
-        st.warning("Please provide XML (paste or upload).")
+    if uploaded_file is None:
+        st.warning("Please upload a file first.")
         st.stop()
 
+    # Save uploaded file to a temp directory
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp_file:
+        tmp_file.write(uploaded_file.getvalue())
+        local_path = tmp_file.name  # this is the dynamic file path
+     
+    # Send this path to Databricks notebook
     with st.spinner("Running on Databricks..."):
-        result = run_databricks_notebook(xml_text)
+        result = run_databricks_notebook(local_path)
 
     # Extract notebook stdout (print output)
     db_output = result.get("notebook_output", {}).get("result", "No output found")
