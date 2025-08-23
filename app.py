@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import json
 
 st.set_page_config(page_title="Upload/Paste → .ipynb", page_icon="🧩")
 st.title("Upload or Paste Text → Download a .ipynb File")
@@ -18,20 +19,37 @@ else:
 
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
-def build_python_file(text: str) -> str:
-    # 🔁 This is where you’d transform the text if you want.
-    # For now we just embed it into a Python script.
-    body = (
-        f"# Auto-generated at {datetime.utcnow().isoformat()}Z\n"
-        f"# Replace this function with your real processing later.\n\n"
-        f"DATA = {text!r}\n\n"
-        f"def main():\n"
-        f"    print('Received input of', len(DATA), 'characters')\n"
-        f"    # TODO: do something with DATA\n\n"
-        f"if __name__ == '__main__':\n"
-        f"    main()\n"
-    )
-    return body
+def build_ipynb_file(text: str) -> str:
+    """Builds a minimal .ipynb structure with one code cell containing the text."""
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "execution_count": None,
+                "metadata": {},
+                "outputs": [],
+                "source": [
+                    f"# Auto-generated at {datetime.utcnow().isoformat()}Z\n",
+                    "DATA = '''" + text.replace("'''", "'''\"\"\"'''") + "'''\n",
+                    "print('Received input of', len(DATA), 'characters')\n",
+                ],
+            }
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {
+                "name": "python",
+                "version": "3.9"
+            },
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    return json.dumps(notebook, indent=2)
 
 if st.button("Create .ipynb file", type="primary"):
     if not final_text.strip():
@@ -41,12 +59,12 @@ if st.button("Create .ipynb file", type="primary"):
         st.warning("Output file name must end with .ipynb")
         st.stop()
 
-    py_code = build_python_file(final_text)
+    ipynb_json = build_ipynb_file(final_text)
 
     st.success("Your .ipynb file is ready! Download below 👇")
     st.download_button(
         "Download file",
-        data=py_code,
+        data=ipynb_json.encode("utf-8"),
         file_name=out_name.strip(),
-        mime="text/x-python",
+        mime="application/x-ipynb+json",
     )
