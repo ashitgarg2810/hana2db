@@ -3,9 +3,14 @@ import streamlit as st
 import time
 
 def run_databricks_notebook(xml_input: str):
-    host = st.secrets["DATABRICKS_HOST"]
-    token = st.secrets["DATABRICKS_TOKEN"]
-    job_id = st.secrets["DATABRICKS_JOB_ID"]
+    host = "https://dbc-1385039b-b177.cloud.databricks.com/?o=3255424343602992"
+    token = "dapi81bfbcee432414d88ca60fa9f83efc02"
+    job_id = "507145734504441"
+
+
+    #host = st.secrets["DATABRICKS_HOST"]
+    #token = st.secrets["DATABRICKS_TOKEN"]
+    #job_id = st.secrets["DATABRICKS_JOB_ID"]
 
     url = f"{host}/api/2.1/jobs/run-now"
     headers = {"Authorization": f"Bearer {token}"}
