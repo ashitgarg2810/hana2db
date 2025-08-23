@@ -70,10 +70,6 @@ def build_ipynb_from_output(output: str) -> str:
     return json.dumps(notebook, indent=2)
 
 
-# Option 1: Paste XML
-xml_text = st.text_area("Paste your XML here:", height=200)
-
-# Option 2: Upload XML from file
 uploaded_file = st.file_uploader("Or upload a .txt file containing XML", type=["txt", "xml"])
 if uploaded_file is not None:
     xml_text = uploaded_file.read().decode("utf-8")  # overwrite pasted text if file is uploaded
