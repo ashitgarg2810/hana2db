@@ -8,9 +8,9 @@ import json
 from datetime import datetime
 
 # Databricks credentials
-DB_HOST = "https://<your-databricks-workspace-url>"
-DB_TOKEN = "<your-token>"
-DB_JOB_ID = "<your-job-id>"
+DB_HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
+DB_TOKEN = "dapi81bfbcee432414d88ca60fa9f83efc02"
+DB_JOB_ID = "507145734504441"
 
 
 # --- Upload file to DBFS ---
