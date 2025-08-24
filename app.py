@@ -28,7 +28,7 @@ if uploaded_file is not None:
     response = requests.put(url, headers=headers, data=file_bytes)
 
     # Show result
-    if response.status_code == 200:
+    if response.status_code in [200, 201, 204]:
         st.success(f"✅ Uploaded to {volume_path}")
     else:
         st.error(f"❌ Upload failed: {response.status_code} - {response.text}")
