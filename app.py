@@ -1,37 +1,30 @@
 import streamlit as st
 import requests
 
-# Databricks details
-DATABRICKS_HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
-DATABRICKS_TOKEN = "507145734504441"
-VOLUME_PATH = "/Volumes/ashit_garg/project1/project1/"  # replace with your volume
+host = st.secrets["DATABRICKS_HOST"]
+token = st.secrets["DATABRICKS_TOKEN"]
 
-st.title("Upload XML to Databricks Volume")
+st.title("📂 Upload File to Databricks Volume")
 
-uploaded_file = st.file_uploader("Choose an XML file", type=["txt"])
+uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
 if uploaded_file is not None:
-    file_name = uploaded_file.name
+    # File content
     file_bytes = uploaded_file.read()
 
-    # Save into local /tmp first
-    local_path = f"/tmp/{file_name}"
-    with open(local_path, "wb") as f:
-        f.write(file_bytes)
+    # Path in Volume (adjust to your catalog.schema.volume path)
+    volume_path = "/Volumes/main.default.my_volume/" + uploaded_file.name
 
-    # Upload to Databricks Volume via DBFS API (prefix /Volumes/ works)
-    target_path = VOLUME_PATH + file_name
-    url = f"{DATABRICKS_HOST}/api/2.0/dbfs/put"
-    headers = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
-    data = {
-        "path": target_path,
-        "overwrite": "true"
+    url = f"{host}/api/2.0/fs/files{volume_path}"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/octet-stream"
     }
-    files = {"contents": file_bytes}
 
-    response = requests.post(url, headers=headers, data=data, files=files)
+    response = requests.put(url, headers=headers, data=file_bytes)
 
     if response.status_code == 200:
-        st.success(f"File uploaded successfully to {target_path}")
+        st.success(f"✅ Uploaded to {volume_path}")
     else:
-        st.error(f"Upload failed: {response.text}")
+        st.error(f"❌ Upload failed: {response.text}")
