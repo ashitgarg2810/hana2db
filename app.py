@@ -2,9 +2,9 @@ import streamlit as st
 import requests
 
 # Databricks details
-DATABRICKS_HOST = "https://<your-workspace>.cloud.databricks.com"
-DATABRICKS_TOKEN = "<your-token>"
-VOLUME_PATH = "/Volumes/my_catalog/my_schema/my_volume/"  # replace with your volume
+DATABRICKS_HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
+DATABRICKS_TOKEN = "507145734504441"
+VOLUME_PATH = "/Volumes/ashit_garg/project1/project1"  # replace with your volume
 
 st.title("Upload XML to Databricks Volume")
 
