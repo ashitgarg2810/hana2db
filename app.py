@@ -8,7 +8,7 @@ VOLUME_PATH = "/Volumes/ashit_garg/project1/project1/"  # replace with your volu
 
 st.title("Upload XML to Databricks Volume")
 
-uploaded_file = st.file_uploader("Choose an XML file", type=["xml"])
+uploaded_file = st.file_uploader("Choose an XML file", type=["txt"])
 
 if uploaded_file is not None:
     file_name = uploaded_file.name
