@@ -13,7 +13,7 @@ if uploaded_file is not None:
     file_bytes = uploaded_file.read()
 
     # Path in Volume (adjust to your catalog.schema.volume path)
-    volume_path = "/Volumes/main.default.my_volume/" + uploaded_file.name
+    volume_path = "/Volumes/ashit_garg/project1/project1/" + uploaded_file.name
 
     url = f"{host}/api/2.0/fs/files{volume_path}"
 
