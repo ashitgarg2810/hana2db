@@ -4,7 +4,7 @@ import requests
 # Databricks details
 DATABRICKS_HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
 DATABRICKS_TOKEN = "507145734504441"
-VOLUME_PATH = "/Volumes/ashit_garg/project1/project1"  # replace with your volume
+VOLUME_PATH = "/Volumes/ashit_garg/project1/project1/"  # replace with your volume
 
 st.title("Upload XML to Databricks Volume")
 
