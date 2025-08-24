@@ -1,35 +1,60 @@
 import requests
 import streamlit as st
 import time
+import json
+from datetime import datetime
+import base64
 
-def run_databricks_notebook(xml_input: str):
-    host = "https://dbc-1385039b-b177.cloud.databricks.com"
-    job_id = "507145734504441"
-    token = "dapi81bfbcee432414d88ca60fa9f83efc02"
-    
-    #host = st.secrets["DATABRICKS_HOST"]
-    #token = st.secrets["DATABRICKS_TOKEN"]
-    #job_id = st.secrets["DATABRICKS_JOB_ID"]
+# ---------- CONFIG ----------
+HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
+JOB_ID = "507145734504441"
+TOKEN = "dapi81bfbcee432414d88ca60fa9f83efc02"
+DBFS_BASE_PATH = "/Volumes/ashit_garg/project1/project1"
 
-    url = f"{host}/api/2.1/jobs/run-now"
-    headers = {"Authorization": f"Bearer {token}"}
+HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+
+# ---------- FUNCTION TO UPLOAD TO DBFS ----------
+def upload_to_dbfs(file_content: bytes, file_name: str) -> str:
+    dbfs_path = f"{DBFS_BASE_PATH}/{file_name}"
+
+    # 1. Create file handle (overwrite = True ensures overwrite if exists)
+    create_url = f"{HOST}/api/2.0/dbfs/create"
+    payload = {"path": dbfs_path, "overwrite": True}
+    resp = requests.post(create_url, headers=HEADERS, json=payload)
+    resp.raise_for_status()
+    handle = resp.json()["handle"]
+
+    # 2. Add block (Databricks requires base64 encoding)
+    add_url = f"{HOST}/api/2.0/dbfs/add-block"
+    data_b64 = base64.b64encode(file_content).decode("utf-8")
+    requests.post(add_url, headers=HEADERS, json={"handle": handle, "data": data_b64}).raise_for_status()
+
+    # 3. Close file
+    close_url = f"{HOST}/api/2.0/dbfs/close"
+    requests.post(close_url, headers=HEADERS, json={"handle": handle}).raise_for_status()
+
+    return dbfs_path
+
+
+# ---------- FUNCTION TO RUN NOTEBOOK ----------
+def run_databricks_notebook(xml_input_path: str):
+    url = f"{HOST}/api/2.1/jobs/run-now"
     payload = {
-        "job_id": int(job_id),
+        "job_id": int(JOB_ID),
         "notebook_params": {
-            "xml_input": str(xml_input)
+            "xml_input": xml_input_path
         }
     }
 
-    resp = requests.post(url, headers=headers, json=payload)
-    print("STATUS:", resp.status_code)#added
-    print("RESPONSE:", resp.text)#added
+    resp = requests.post(url, headers=HEADERS, json=payload)
     resp.raise_for_status()
     run_id = resp.json()["run_id"]
 
     # Poll until job finishes
     while True:
-        status_url = f"{host}/api/2.1/jobs/runs/get?run_id={run_id}"
-        r = requests.get(status_url, headers=headers)
+        status_url = f"{HOST}/api/2.1/jobs/runs/get?run_id={run_id}"
+        r = requests.get(status_url, headers=HEADERS)
         r.raise_for_status()
         state = r.json()["state"]["life_cycle_state"]
         if state == "TERMINATED":
@@ -37,15 +62,13 @@ def run_databricks_notebook(xml_input: str):
         time.sleep(5)
 
     # Fetch output
-    output_url = f"{host}/api/2.1/jobs/runs/get-output?run_id={run_id}"
-    out_resp = requests.get(output_url, headers=headers)
+    output_url = f"{HOST}/api/2.1/jobs/runs/get-output?run_id={run_id}"
+    out_resp = requests.get(output_url, headers=HEADERS)
     out_resp.raise_for_status()
     return out_resp.json()
 
 
-import json
-from datetime import datetime
-
+# ---------- FUNCTION TO BUILD NOTEBOOK ----------
 def build_ipynb_from_output(output: str) -> str:
     notebook = {
         "cells": [
@@ -70,19 +93,21 @@ def build_ipynb_from_output(output: str) -> str:
     return json.dumps(notebook, indent=2)
 
 
-uploaded_file = st.file_uploader("Or upload a .txt file containing XML", type=["txt", "xml"])
-if uploaded_file is not None:
-    xml_text = uploaded_file.read().decode("utf-8")  # overwrite pasted text if file is uploaded
-
+# ---------- STREAMLIT UI ----------
+uploaded_file = st.file_uploader("Upload a .txt or .xml file", type=["txt", "xml"])
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
 
 if st.button("Run Notebook & Generate File", type="primary"):
-    if not xml_text or not xml_text.strip():
-        st.warning("Please provide XML (paste or upload).")
+    if uploaded_file is None:
+        st.warning("Please upload a file first.")
         st.stop()
 
-    with st.spinner("Running on Databricks..."):
-        result = run_databricks_notebook(xml_text)
+    with st.spinner("Uploading file to DBFS..."):
+        file_bytes = uploaded_file.read()
+        dbfs_path = upload_to_dbfs(file_bytes, uploaded_file.name)
+
+    with st.spinner(f"Running Notebook with input file {dbfs_path}..."):
+        result = run_databricks_notebook(dbfs_path)
 
     # Extract notebook stdout (print output)
     db_output = result.get("notebook_output", {}).get("result", "No output found")
