@@ -1,38 +1,37 @@
 import streamlit as st
 import requests
 
-# Databricks config
-DATABRICKS_HOST = "https://dbc-1385039b-b177.cloud.databricks.com"
-TOKEN = "507145734504441"
-VOLUME_PATH = "/Volumes/ashit_garg/project1/project1"
+# Databricks details
+DATABRICKS_HOST = "https://<your-workspace>.cloud.databricks.com"
+DATABRICKS_TOKEN = "<your-token>"
+VOLUME_PATH = "/Volumes/my_catalog/my_schema/my_volume/"  # replace with your volume
 
-headers = {
-    "Authorization": f"Bearer {TOKEN}"
-}
+st.title("Upload XML to Databricks Volume")
 
-st.title("Upload File to Databricks Volume")
-
-uploaded_file = st.file_uploader("Choose a file", type=["xml", "txt", "csv", "json"])
+uploaded_file = st.file_uploader("Choose an XML file", type=["xml"])
 
 if uploaded_file is not None:
-    file_content = uploaded_file.read()
     file_name = uploaded_file.name
-    target_path = f"{VOLUME_PATH}/{file_name}"
+    file_bytes = uploaded_file.read()
 
-    # Upload via DBFS API
-    # (Even though it’s a volume, we use dbfs API and point to the /Volumes path)
-    put_url = f"{DATABRICKS_HOST}/api/2.0/dbfs/put"
-    resp = requests.post(
-        put_url,
-        headers=headers,
-        json={
-            "path": target_path,
-            "contents": file_content.decode("utf-8"),
-            "overwrite": True
-        }
-    )
+    # Save into local /tmp first
+    local_path = f"/tmp/{file_name}"
+    with open(local_path, "wb") as f:
+        f.write(file_bytes)
 
-    if resp.status_code == 200:
+    # Upload to Databricks Volume via DBFS API (prefix /Volumes/ works)
+    target_path = VOLUME_PATH + file_name
+    url = f"{DATABRICKS_HOST}/api/2.0/dbfs/put"
+    headers = {"Authorization": f"Bearer {DATABRICKS_TOKEN}"}
+    data = {
+        "path": target_path,
+        "overwrite": "true"
+    }
+    files = {"contents": file_bytes}
+
+    response = requests.post(url, headers=headers, data=data, files=files)
+
+    if response.status_code == 200:
         st.success(f"File uploaded successfully to {target_path}")
     else:
-        st.error(f"Upload failed: {resp.text}")
+        st.error(f"Upload failed: {response.text}")
