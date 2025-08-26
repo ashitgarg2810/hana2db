@@ -53,13 +53,13 @@ def run_databricks_notebook(xml_input_path: str):
         status_url = f"{HOST}/api/2.1/jobs/runs/get?run_id={run_id}"
         r = requests.get(status_url, headers=HEADERS)
         r.raise_for_status()
-        state = r.json()["state"]["life_cycle_state"]
-        st.write(f"📡 Job status: {state}")
-        if state == "TERMINATED":
+        state = r.json()["state"]
+        st.write("📡 Job state:", state)  # show full state
+        if state["life_cycle_state"] == "TERMINATED":
             break
         time.sleep(5)
 
-    # Fetch output
+    # Fetch detailed output
     output_url = f"{HOST}/api/2.1/jobs/runs/get-output?run_id={run_id}"
     out_resp = requests.get(output_url, headers=HEADERS)
     out_resp.raise_for_status()
@@ -96,7 +96,7 @@ def build_ipynb_from_output(output: str) -> str:
 
 
 # ---------- STREAMLIT UI ----------
-st.title("🚀 Databricks XML → Notebook Converter")
+st.title("🚀 Databricks XML → Notebook Converter (Debug Mode)")
 
 uploaded_file = st.file_uploader("Upload a .txt or .xml file", type=["txt", "xml"])
 out_name = st.text_input("Output filename (.ipynb)", value="converted.ipynb")
@@ -113,16 +113,27 @@ if st.button("Run Notebook & Generate File", type="primary"):
         with st.spinner(f"⚡ Running Databricks job with input file: {dbfs_path}"):
             result = run_databricks_notebook(dbfs_path)
 
-        # Debug: show raw job result
-        st.write("🔍 Raw job result:", result)
+        # 🔍 Show full raw result for debugging
+        st.subheader("🔍 Full Job Result JSON")
+        st.json(result)
 
-        # Extract notebook stdout (print output)
-        db_output = result.get("notebook_output", {}).get("result")
+        # Extract possible outputs
+        db_output = (
+            result.get("notebook_output", {}).get("result")
+            or result.get("notebook_output", {}).get("truncated", "⚠️ No result field")
+        )
 
-        if not db_output:
-            db_output = "⚠️ No notebook output found. Check if your Databricks notebook is printing results."
+        logs = result.get("logs", "⚠️ No logs available in response")
+        error_msg = result.get("error", {}).get("message")
 
-        ipynb_content = build_ipynb_from_output(db_output)
+        combined_output = ""
+        combined_output += "### Notebook Result ###\n"
+        combined_output += str(db_output) + "\n\n"
+        combined_output += "### Logs ###\n" + str(logs) + "\n\n"
+        if error_msg:
+            combined_output += "### Error ###\n" + error_msg + "\n"
+
+        ipynb_content = build_ipynb_from_output(combined_output)
 
         st.success("🎉 Notebook executed and .ipynb file generated! Download below 👇")
         st.download_button(
