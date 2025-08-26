@@ -1,74 +1,59 @@
 import streamlit as st
 import requests
 import time
-import base64
 
-# Databricks credentials
-host = st.secrets["DATABRICKS_HOST"]
-token = st.secrets["DATABRICKS_TOKEN"]
+# Databricks config
+HOST = st.secrets["DATABRICKS_HOST"]
+TOKEN = st.secrets["DATABRICKS_TOKEN"]
+JOB_ID = st.secrets["DATABRICKS_JOB_ID"]
 
-# Job details
-job_id = st.secrets["DATABRICKS_JOB_ID"]   # <-- store your job id in secrets
-
-st.title("📂 Upload + Run Job + Download Notebook")
+st.title("📂 Upload & Run Databricks Job")
 
 uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
 if uploaded_file is not None:
-    # Upload to DBFS
+    # Upload file
     file_bytes = uploaded_file.read()
-    file_path = f"/Volumes/ashit_garg/project1/project1/{uploaded_file.name}"
+    dbfs_path = f"/Volumes/ashit_garg/project1/project1/{uploaded_file.name}"
 
-    upload_url = f"{host}/api/2.0/fs/files{file_path}"
-    headers = {"Authorization": f"Bearer {token}"}
-    res = requests.put(upload_url, headers=headers, data=file_bytes)
+    upload_url = f"{HOST}/api/2.0/fs/files{dbfs_path}"
+    headers = {"Authorization": f"Bearer {TOKEN}"}
+    r = requests.put(upload_url, headers=headers, data=file_bytes)
+    if r.status_code == 200:
+        st.success(f"✅ File uploaded: {dbfs_path}")
 
-    if res.status_code == 200:
-        st.success(f"✅ File uploaded to {file_path}")
+        # Add a button to trigger the job
+        if st.button("🚀 Run Databricks Job"):
+            payload = {"job_id": JOB_ID, "notebook_params": {"input_path": dbfs_path}}
+            run_url = f"{HOST}/api/2.1/jobs/run-now"
+            run_resp = requests.post(run_url, headers=headers, json=payload)
 
-        # Trigger Databricks job
-        run_url = f"{host}/api/2.1/jobs/run-now"
-        payload = {
-            "job_id": job_id,
-            "notebook_params": {"input_path": file_path}
-        }
-        run_res = requests.post(run_url, headers=headers, json=payload)
+            if run_resp.status_code == 200:
+                run_id = run_resp.json()["run_id"]
+                st.info(f"▶️ Job started (Run ID: {run_id})")
 
-        if run_res.status_code == 200:
-            run_id = run_res.json()["run_id"]
-            st.info(f"🚀 Job triggered (Run ID: {run_id})")
-
-            # Poll until job completes
-            status_url = f"{host}/api/2.1/jobs/runs/get"
-            while True:
-                status_res = requests.get(status_url, headers=headers, params={"run_id": run_id})
-                state = status_res.json()["state"]["life_cycle_state"]
-
-                if state in ["TERMINATED", "INTERNAL_ERROR", "SKIPPED"]:
-                    result_state = status_res.json()["state"]["result_state"]
-                    st.success(f"✅ Job finished with result: {result_state}")
-                    break
-                else:
-                    st.write(f"⏳ Job running... ({state})")
+                # Poll job until completion
+                status_url = f"{HOST}/api/2.1/jobs/runs/get?run_id={run_id}"
+                state = "RUNNING"
+                while state in ("PENDING", "RUNNING"):
                     time.sleep(5)
+                    status_resp = requests.get(status_url, headers=headers)
+                    state = status_resp.json()["state"]["life_cycle_state"]
+                    st.write(f"Job status: {state}")
 
-            # Get notebook output (export as ipynb)
-            export_url = f"{host}/api/2.0/jobs/runs/export"
-            export_res = requests.get(export_url, headers=headers, params={"run_id": run_id, "views_to_export": "CODE"})
+                st.success("✅ Job completed!")
 
-            if export_res.status_code == 200:
-                ipynb_content = export_res.json()["views"][0]["content"]
-                ipynb_bytes = base64.b64decode(ipynb_content)
+                # Get output notebook
+                output_url = f"{HOST}/api/2.0/jobs/runs/{run_id}/export?views=CODE"
+                out_resp = requests.get(output_url, headers=headers)
 
-                st.download_button(
-                    label="⬇️ Download Notebook (.ipynb)",
-                    data=ipynb_bytes,
-                    file_name="output_notebook.ipynb",
-                    mime="application/x-ipynb+json"
-                )
+                if out_resp.status_code == 200:
+                    with open("output.ipynb", "wb") as f:
+                        f.write(out_resp.content)
+                    st.download_button("⬇️ Download Notebook", out_resp.content, "output.ipynb")
+                else:
+                    st.error(f"⚠️ Could not fetch notebook. Status: {out_resp.status_code}")
             else:
-                st.error(f"❌ Export failed: {export_res.text}")
-        else:
-            st.error(f"❌ Could not trigger job: {run_res.text}")
+                st.error(f"⚠️ Job trigger failed: {run_resp.text}")
     else:
-        st.error(f"❌ Upload failed: {res.text}")
+        st.error(f"⚠️ Upload failed: {r.text}")
