@@ -15,10 +15,6 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 # ---------- FUNCTION TO UPLOAD TO DATABRICKS VOLUME ----------
 def upload_to_databricks(uploaded_file):
-    """
-    Uploads file directly into /Volumes/... using REST API.
-    Returns full volume path if successful.
-    """
     file_bytes = uploaded_file.read()
     volume_path = f"{DBFS_BASE_PATH}/{uploaded_file.name}"
     url = f"{HOST}/api/2.0/fs/files{volume_path}"
@@ -31,7 +27,7 @@ def upload_to_databricks(uploaded_file):
     resp = requests.put(url, headers=headers, data=file_bytes)
 
     if resp.status_code in [200, 201, 204]:
-        st.success(f"✅ Uploaded to {volume_path}")
+        st.info(f"✅ Uploaded to {volume_path}")
         return volume_path
     else:
         st.error(f"❌ Upload failed: {resp.status_code} - {resp.text}")
@@ -50,12 +46,15 @@ def run_databricks_notebook(xml_input_path: str):
     resp.raise_for_status()
     run_id = resp.json()["run_id"]
 
+    st.write(f"🚀 Job started with run_id: {run_id}")
+
     # Poll until job finishes
     while True:
         status_url = f"{HOST}/api/2.1/jobs/runs/get?run_id={run_id}"
         r = requests.get(status_url, headers=HEADERS)
         r.raise_for_status()
         state = r.json()["state"]["life_cycle_state"]
+        st.write(f"📡 Job status: {state}")
         if state == "TERMINATED":
             break
         time.sleep(5)
@@ -114,8 +113,14 @@ if st.button("Run Notebook & Generate File", type="primary"):
         with st.spinner(f"⚡ Running Databricks job with input file: {dbfs_path}"):
             result = run_databricks_notebook(dbfs_path)
 
+        # Debug: show raw job result
+        st.write("🔍 Raw job result:", result)
+
         # Extract notebook stdout (print output)
-        db_output = result.get("notebook_output", {}).get("result", "No output found")
+        db_output = result.get("notebook_output", {}).get("result")
+
+        if not db_output:
+            db_output = "⚠️ No notebook output found. Check if your Databricks notebook is printing results."
 
         ipynb_content = build_ipynb_from_output(db_output)
 
