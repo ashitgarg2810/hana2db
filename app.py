@@ -51,7 +51,7 @@ if uploaded_file is not None and st.button("🚀 Start"):
     response = requests.put(url, headers=headers, data=file_bytes)
 
     if response.status_code in [200, 201, 204]:
-        st.success(f"✅ Uploaded to {volume_path}")
+        st.success(f"✅")
 
         # Trigger the Databricks Job
         run_url = f"{host}/api/2.1/jobs/run-now"
@@ -63,9 +63,9 @@ if uploaded_file is not None and st.button("🚀 Start"):
             st.session_state.run_id = run_id
             st.session_state.uploaded_file_name = uploaded_file.name
             st.session_state.job_done = False
-            st.success(f"🚀 Job triggered successfully! Run ID: {run_id}")
+            st.success(f"🚀LakeShift Unique Id: {run_id}")
         else:
-            st.error(f"❌ Job trigger failed: {run_response.status_code} - {run_response.text}")
+            st.error(f"❌ Job failed: {run_response.status_code} - {run_response.text}")
     else:
         st.error(f"❌ Upload failed: {response.status_code} - {response.text}")
 
@@ -103,7 +103,7 @@ if st.session_state.run_id and not st.session_state.job_done:
                     if task_output:
                         out_filename = st.session_state.uploaded_file_name.rsplit(".", 1)[0] + "_cnv.py"
                         st.download_button(
-                            label=f"📥 Download Converted Output for {task_key}",
+                            label=f"📥 Download File {task_key}",
                             data=task_output,
                             file_name=out_filename,
                             mime="text/plain"
@@ -115,4 +115,4 @@ if st.session_state.run_id and not st.session_state.job_done:
         else:
             st.warning("⚠️ No tasks found in job run response.")
     else:
-        st.info(f"⏳ Job is {life_cycle} ... checking again in 10s")
+        st.info(f"⏳ Job is {life_cycle}")
