@@ -60,7 +60,7 @@ if uploaded_file is not None and st.button("🚀 Start"):
 
         # Trigger the Databricks Job
         run_url = f"{host}/api/2.1/jobs/run-now"
-        payload = {"job_id": job_id, "notebook_params": {"file_path": volume_path}}
+        payload = {"job_id": job_id, "notebook_params": {"xml_input": volume_path}}
         run_response = requests.post(run_url, headers={"Authorization": f"Bearer {token}"}, json=payload)
 
         if run_response.status_code == 200:
