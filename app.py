@@ -38,7 +38,10 @@ st.markdown(
 
 st.markdown("<h4 style='text-align:center; color:gray;'>Migrate SAP HANA Calculation Views to Databricks in Seconds 🚀</h4>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
+# uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
+with st.container():
+    st.markdown("### 📂 Upload File")
+    uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
 # --- Start Button ---
 if uploaded_file is not None and st.button("🚀 Start"):
