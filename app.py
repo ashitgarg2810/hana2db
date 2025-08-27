@@ -73,7 +73,7 @@ if uploaded_file is not None and st.button("🚀 Start"):
                                 "execution_count": 1,
                                 "metadata": {},
                                 "outputs": [],
-                                "source": result_text.splitlines(True)
+                                "source": [line + "\n" for line in result_text.splitlines()]
                             }
                         ],
                         "metadata": {
@@ -95,10 +95,14 @@ if uploaded_file is not None and st.button("🚀 Start"):
                     base_name, _ = os.path.splitext(uploaded_file.name)
                     out_file = f"{base_name}_cnv.ipynb"
 
-                    # Offer download
+                    # --- Preview notebook content ---
+                    st.subheader("📑 Notebook Preview")
+                    st.code(result_text, language="python")
+
+                    # --- Offer download ---
                     st.download_button(
                         label=f"📥 Download {out_file}",
-                        data=json.dumps(notebook_json, indent=2),
+                        data=json.dumps(notebook_json, indent=2).encode("utf-8"),
                         file_name=out_file,
                         mime="application/x-ipynb+json"
                     )
