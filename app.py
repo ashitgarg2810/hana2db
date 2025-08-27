@@ -2,47 +2,58 @@ import streamlit as st
 import requests
 import time
 
-# Databricks credentials
+# Databricks credentials from Streamlit secrets
 host = st.secrets["DATABRICKS_HOST"]
 token = st.secrets["DATABRICKS_TOKEN"]
 job_id = st.secrets["DATABRICKS_JOB_ID"]
 
-headers = {"Authorization": f"Bearer {token}"}
-
 # --- UI Header ---
 st.markdown("<h1 style='text-align: center; font-size: 48px;'>Lake Shift</h1>", unsafe_allow_html=True)
 
-# --- Run Job Button ---
-if st.button("▶️ Run Databricks Job"):
-    # Trigger job run
-    run_url = f"{host}/api/2.1/jobs/run-now"
-    payload = {"job_id": job_id}
-    run_response = requests.post(run_url, headers=headers, json=payload)
+uploaded_file = st.file_uploader("Upload an XML file", type=["xml"])
 
-    if run_response.status_code != 200:
-        st.error(f"Failed to trigger job: {run_response.text}")
-    else:
-        run_id = run_response.json()["run_id"]
-        st.info(f"Job started with run_id: {run_id}")
+if uploaded_file is not None:
+    xml_content = uploaded_file.read().decode("utf-8")
 
-        # Poll until job completes
-        status_url = f"{host}/api/2.1/jobs/runs/get"
-        while True:
-            status_response = requests.get(status_url, headers=headers, params={"run_id": run_id})
-            run_state = status_response.json()["state"]["life_cycle_state"]
+    if st.button("Run Migration Job"):
+        headers = {"Authorization": f"Bearer {token}"}
+        data = {
+            "job_id": job_id,
+            "notebook_params": {"xml_input": xml_content}
+        }
 
-            if run_state in ("TERMINATED", "INTERNAL_ERROR", "SKIPPED"):
-                break
-            time.sleep(5)
+        # --- Run Databricks Job ---
+        response = requests.post(f"{host}/api/2.1/jobs/run-now", headers=headers, json=data)
+        
+        if response.status_code == 200:
+            run_id = response.json().get("run_id")
+            st.write("✅ Job started. Run ID:", run_id)
 
-        # --- Fetch notebook.exit() value ---
-        result_url = f"{host}/api/2.1/jobs/runs/get-output"
-        result_response = requests.get(result_url, headers=headers, params={"run_id": run_id})
+            # --- Poll until job finishes ---
+            run_status = "PENDING"
+            while run_status not in ["TERMINATED", "SKIPPED", "INTERNAL_ERROR"]:
+                time.sleep(5)
+                status_response = requests.get(
+                    f"{host}/api/2.1/jobs/runs/get?run_id={run_id}",
+                    headers=headers
+                )
+                run_status = status_response.json().get("state", {}).get("life_cycle_state", "")
+                st.write("⏳ Job status:", run_status)
 
-        if result_response.status_code == 200:
-            result_json = result_response.json()
-            notebook_output = result_json.get("notebook_output", {}).get("result", "❌ No output returned")
-            st.success("✅ Job Completed")
-            st.code(notebook_output)
+            # --- Retrieve job output (only final notebook.exit) ---
+            output_response = requests.get(
+                f"{host}/api/2.1/jobs/runs/get-output?run_id={run_id}",
+                headers=headers
+            )
+
+            if output_response.status_code == 200:
+                output_data = output_response.json()
+                result_text = output_data.get("notebook_output", {}).get("result", "❌ No result found")
+            else:
+                result_text = f"❌ Could not fetch job output: {output_response.status_code} - {output_response.text}"
+
+            st.subheader("📄 Job Output")
+            st.code(result_text, language="python")
+
         else:
-            st.error(f"❌ Could not fetch job output: {result_response.text}")
+            st.error(f"❌ Failed to start job: {response.status_code} - {response.text}")
