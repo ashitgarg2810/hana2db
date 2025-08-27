@@ -1,59 +1,39 @@
 import streamlit as st
 import requests
 import time
+import json
+import os
 
-# Databricks credentials from Streamlit secrets
+Databricks credentials from Streamlit secrets
+
 host = st.secrets["DATABRICKS_HOST"]
 token = st.secrets["DATABRICKS_TOKEN"]
 job_id = st.secrets["DATABRICKS_JOB_ID"]
 
-# --- UI Header ---
+--- UI Header ---
+
 st.markdown("<h1 style='text-align: center; font-size: 48px;'>Lake Shift</h1>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload an XML file", type=["xml"])
+uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
-if uploaded_file is not None:
-    xml_content = uploaded_file.read().decode("utf-8")
+--- Start Button ---
 
-    if st.button("Run Migration Job"):
-        headers = {"Authorization": f"Bearer {token}"}
-        data = {
-            "job_id": job_id,
-            "notebook_params": {"xml_input": xml_content}
-        }
+if uploaded_file is not None and st.button("🚀 Start"):
+# Read file as bytes
+file_bytes = uploaded_file.read()
 
-        # --- Run Databricks Job ---
-        response = requests.post(f"{host}/api/2.1/jobs/run-now", headers=headers, json=data)
-        
-        if response.status_code == 200:
-            run_id = response.json().get("run_id")
-            st.write("✅ Job started. Run ID:", run_id)
+# Define the volume path  
+volume_path = f"/Volumes/ashit_garg/project1/project1/{uploaded_file.name}"  
 
-            # --- Poll until job finishes ---
-            run_status = "PENDING"
-            while run_status not in ["TERMINATED", "SKIPPED", "INTERNAL_ERROR"]:
-                time.sleep(5)
-                status_response = requests.get(
-                    f"{host}/api/2.1/jobs/runs/get?run_id={run_id}",
-                    headers=headers
-                )
-                run_status = status_response.json().get("state", {}).get("life_cycle_state", "")
-                st.write("⏳ Job status:", run_status)
+# Upload file to Volumes  
+url = f"{host}/api/2.0/fs/files{volume_path}"  
+headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}  
+response = requests.put(url, headers=headers, data=file_bytes)  
 
-            # --- Retrieve job output (only final notebook.exit) ---
-            output_response = requests.get(
-                f"{host}/api/2.1/jobs/runs/get-output?run_id={run_id}",
-                headers=headers
-            )
+if response.status_code in [200, 201, 204]:  
+    st.success(f"✅ Uploaded to {volume_path}")  
 
-            if output_response.status_code == 200:
-                output_data = output_response.json()
-                result_text = output_data.get("notebook_output", {}).get("result", "❌ No result found")
-            else:
-                result_text = f"❌ Could not fetch job output: {output_response.status_code} - {output_response.text}"
-
-            st.subheader("📄 Job Output")
-            st.code(result_text, language="python")
-
-        else:
-            st.error(f"❌ Failed to start job: {response.status_code} - {response.text}")
+    # Trigger the Databricks Job  
+    run_url = f"{host}/api/2.1/jobs/run-now"  
+    payload = {"job_id": job_id, "notebook_params": {"file_path": volume_path}}  
+    run_response = requests.post(run_url, headers={"Authorization": f"Bearer {token}"}, json=payload)
