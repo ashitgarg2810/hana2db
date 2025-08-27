@@ -41,7 +41,7 @@ uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 # --- Start Button ---
 if uploaded_file is not None and st.button("🚀 Start"):
     file_bytes = uploaded_file.read()
-    volume_path = f"/Volumes/ashit_garg/project1/project1/{uploaded_file.name}"
+    volume_path = f"/Volumes/project1/project1/project1/{uploaded_file.name}"
 
     url = f"{host}/api/2.0/fs/files{volume_path}"
     headers = {
