@@ -117,4 +117,4 @@ if st.session_state.run_id and not st.session_state.job_done:
         else:
             st.warning("⚠️ No tasks found in job run response.")
     else:
-        st.info(f"⏳ Job is {life_cycle}")
+        st.info(f"⏳ Job : {life_cycle}")
