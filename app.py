@@ -4,7 +4,7 @@ import time
 import json
 import os
 
-Databricks credentials from Streamlit secrets
+--- Databricks credentials from Streamlit secrets ---
 
 host = st.secrets["DATABRICKS_HOST"]
 token = st.secrets["DATABRICKS_TOKEN"]
