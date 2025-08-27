@@ -9,7 +9,23 @@ token = st.secrets["DATABRICKS_TOKEN"]
 job_id = st.secrets["DATABRICKS_JOB_ID"]
 
 # --- UI Header ---
-st.markdown("<h1 style='text-align: center; font-size: 48px;'>LakeShift</h1>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <h1 style="
+        text-align: center;
+        font-size: 56px;
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: bold;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        margin-bottom: 20px;
+    ">
+        LakeShift
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
 
 uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
