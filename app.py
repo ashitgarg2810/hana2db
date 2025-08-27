@@ -41,7 +41,7 @@ st.markdown("<h4 style='text-align:center; color:gray;'>Migrate SAP HANA Calcula
 # uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 with st.container():
     st.markdown("### 📂 Upload File")
-    uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
+    uploaded_file = st.file_uploader("", type=["txt", "xml"])
 
 # --- Start Button ---
 if uploaded_file is not None and st.button("🚀 Start"):
