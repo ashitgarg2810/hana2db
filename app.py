@@ -4,10 +4,10 @@ import time
 import json
 from streamlit_autorefresh import st_autorefresh
 
-# --- Databricks credentials ---
-host = st.secrets["DATABRICKS_HOST"]
-token = st.secrets["DATABRICKS_TOKEN"]
-job_id = st.secrets["DATABRICKS_JOB_ID"]
+
+host = st.secrets["HOST"]
+token = st.secrets["TOKEN"]
+job_id = st.secrets["JOB_ID"]
 
 # --- Session state ---
 if "run_id" not in st.session_state:
