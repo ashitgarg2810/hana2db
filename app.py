@@ -76,7 +76,7 @@ if uploaded_file is not None and st.button("🚀 Start"):
 
                         if task_output:
                             # Save output as .txt file with _cnv suffix
-                            out_filename = uploaded_file.name.rsplit(".", 1)[0] + "_cnv.txt"
+                            out_filename = uploaded_file.name.rsplit(".", 1)[0] + "_cnv.py"
                             st.download_button(
                                 label=f"📥 Download Converted Output for {task_key}",
                                 data=task_output,
