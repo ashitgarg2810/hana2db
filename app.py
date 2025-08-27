@@ -5,20 +5,22 @@ import time
 # Databricks credentials from Streamlit secrets
 host = st.secrets["DATABRICKS_HOST"]
 token = st.secrets["DATABRICKS_TOKEN"]
-job_id = st.secrets["DATABRICKS_JOB_ID"]   # Store your job ID in secrets
+job_id = st.secrets["DATABRICKS_JOB_ID"]
 
-st.title("📂 Upload File & Run Databricks Job")
+# --- UI Header ---
+st.markdown("<h1 style='text-align: center; font-size: 48px;'>Lake Shift</h1>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Choose a file", type=["txt", "xml"])
 
-if uploaded_file is not None:
+# --- Start Button ---
+if uploaded_file is not None and st.button("🚀 Start"):
     # Read file as bytes
     file_bytes = uploaded_file.read()
 
     # Define the volume path (adjust catalog/schema/volume name)
     volume_path = f"/Volumes/ashit_garg/project1/project1/{uploaded_file.name}"
 
-    # Upload file to DBFS/Volumes
+    # Upload file to Volumes
     url = f"{host}/api/2.0/fs/files{volume_path}"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -29,13 +31,11 @@ if uploaded_file is not None:
     if response.status_code in [200, 201, 204]:
         st.success(f"✅ Uploaded to {volume_path}")
 
-        # Trigger the Databricks Job with file path as parameter
+        # Trigger the Databricks Job
         run_url = f"{host}/api/2.1/jobs/run-now"
         payload = {
             "job_id": job_id,
-            "notebook_params": {
-                "file_path": volume_path
-            }
+            "notebook_params": {"file_path": volume_path}
         }
         run_response = requests.post(run_url, headers={"Authorization": f"Bearer {token}"}, json=payload)
 
@@ -43,7 +43,7 @@ if uploaded_file is not None:
             run_id = run_response.json().get("run_id")
             st.success(f"🚀 Job triggered successfully! Run ID: {run_id}")
 
-            # Poll job status until it finishes
+            # Poll job status
             status_url = f"{host}/api/2.1/jobs/runs/get?run_id={run_id}"
             with st.spinner("⏳ Waiting for job to complete..."):
                 while True:
@@ -60,14 +60,16 @@ if uploaded_file is not None:
                         break
                     time.sleep(5)
 
-            # Export executed notebook as .ipynb
-            notebook_path = status_resp.json().get("task", {}).get("notebook_task", {}).get("notebook_path")
+            # --- Fix: Get executed notebook path ---
+            tasks = status_resp.json().get("tasks", [])
+            notebook_path = None
+            if tasks and "notebook_task" in tasks[0]:
+                notebook_path = tasks[0]["notebook_task"].get("notebook_path")
+
+            # Export notebook if available
             if notebook_path:
                 export_url = f"{host}/api/2.0/workspace/export"
-                params = {
-                    "path": notebook_path,
-                    "format": "JUPYTER"
-                }
+                params = {"path": notebook_path, "format": "JUPYTER"}
                 export_resp = requests.get(export_url, headers={"Authorization": f"Bearer {token}"}, params=params)
 
                 if export_resp.status_code == 200:
